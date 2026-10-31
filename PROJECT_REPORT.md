@@ -83,8 +83,8 @@ d:\Event-Registration\
     ├── vite.config.js              # Vite configuration
     └── src\
         ├── main.jsx                # React DOM render entry
-        ├── App.jsx                 # Single-view component handling all UI, forms & APIs
-        └── App.css                 # Clean, responsive CSS stylesheet
+        ├── App.jsx                 # Single clean component handling all UI, navigation & APIs
+        └── index.css               # Clean 120-line student-handwritten CSS (no frameworks)
 ```
 
 ---
@@ -252,3 +252,4 @@ The frontend uses **React (JavaScript with `.jsx`)** structured inside `App.jsx`
    npm run dev -- --host 127.0.0.1 --port 5173
    ```
    *Access in browser at `http://127.0.0.1:5173`*
+

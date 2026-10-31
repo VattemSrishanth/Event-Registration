@@ -1,367 +1,410 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import './App.css';
+import './index.css';
 
 const API_BASE = 'http://localhost:8080/api';
 
 export default function App() {
+  const [tab, setTab] = useState('events');
   const [events, setEvents] = useState([]);
   const [participants, setParticipants] = useState([]);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Event Form State
   const [eventForm, setEventForm] = useState({ name: '', date: '', venue: '', organizerEmail: '' });
   const [editingId, setEditingId] = useState(null);
 
-  // Participant Registration State
   const [regForm, setRegForm] = useState({ eventId: '', name: '', email: '' });
 
-  // Load data on start
   useEffect(() => {
-    fetchEvents();
-    fetchParticipants();
+    loadEvents();
+    loadParticipants();
   }, []);
 
-  // 1. GET Events using Axios
-  const fetchEvents = async () => {
+  const loadEvents = async () => {
     try {
+      setLoading(true);
       const res = await axios.get(`${API_BASE}/events`);
       setEvents(res.data);
-    } catch (err) {
-      setError('Failed to fetch events from backend');
+    } catch (e) {
+      setErr('Failed to load events');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 2. GET Participants using Fetch API
-  const fetchParticipants = async () => {
+  const loadParticipants = async () => {
     try {
       const res = await fetch(`${API_BASE}/participants`);
       const data = await res.json();
       setParticipants(data);
-    } catch (err) {
-      setError('Failed to fetch participants');
+    } catch (e) {
+      setErr('Failed to load participants');
     }
   };
 
-  const showMsg = (msg) => {
-    setMessage(msg);
-    setError('');
-    setTimeout(() => setMessage(''), 4000);
-  };
-
-  const showErr = (err) => {
-    setError(err);
-    setTimeout(() => setError(''), 5000);
-  };
-
-  // 3. POST / PUT Event using Axios
   const handleEventSubmit = async (e) => {
     e.preventDefault();
+    setErr('');
     const { name, date, venue, organizerEmail } = eventForm;
 
-    // Validation
     if (!name.trim() || !date || !venue.trim() || !organizerEmail.trim()) {
-      return showErr('All event fields are required!');
+      setErr('All fields are required');
+      return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(organizerEmail.trim())) {
-      return showErr('Invalid organizer email format!');
+      setErr('Invalid organizer email address');
+      return;
     }
 
     try {
       if (editingId) {
-        // PUT: Update Event
         await axios.put(`${API_BASE}/events/${editingId}`, eventForm);
-        showMsg('Event updated successfully!');
+        setMsg('Event updated successfully');
         setEditingId(null);
       } else {
-        // POST: Add Event
         await axios.post(`${API_BASE}/events`, eventForm);
-        showMsg('Event created successfully!');
+        setMsg('Event added successfully');
       }
       setEventForm({ name: '', date: '', venue: '', organizerEmail: '' });
-      fetchEvents();
-    } catch (err) {
-      showErr(err.response?.data?.message || 'Error saving event');
+      loadEvents();
+      setTab('events');
+    } catch (e) {
+      setErr(e.response?.data?.message || 'Error saving event');
     }
   };
 
-  // 4. DELETE Event using Axios
   const handleDeleteEvent = async (id, name) => {
     if (!window.confirm(`Delete event "${name}"?`)) return;
     try {
       await axios.delete(`${API_BASE}/events/${id}`);
-      showMsg(`Event "${name}" deleted.`);
-      fetchEvents();
-      fetchParticipants();
-    } catch (err) {
-      showErr(err.response?.data?.message || 'Error deleting event');
+      setMsg(`Event deleted`);
+      loadEvents();
+      loadParticipants();
+    } catch (e) {
+      setErr('Error deleting event');
     }
   };
 
-  // 5. POST Register Participant using Axios
-  const handleRegister = async (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    setErr('');
     const { eventId, name, email } = regForm;
 
-    // Validation
-    if (!eventId) return showErr('Please select an event!');
-    if (!name.trim() || !email.trim()) return showErr('Participant name and email are required!');
-
+    if (!eventId) {
+      setErr('Please select an event');
+      return;
+    }
+    if (!name.trim() || !email.trim()) {
+      setErr('Name and email are required');
+      return;
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) return showErr('Invalid participant email format!');
+    if (!emailRegex.test(email.trim())) {
+      setErr('Invalid student email format');
+      return;
+    }
 
     try {
       await axios.post(`${API_BASE}/events/${eventId}/register`, {
         name: name.trim(),
         email: email.trim(),
       });
-      showMsg(`Successfully registered ${name}!`);
+      setMsg('Participant registered successfully');
       setRegForm({ eventId: '', name: '', email: '' });
-      fetchEvents();
-      fetchParticipants();
-    } catch (err) {
-      showErr(err.response?.data?.message || 'Registration failed');
+      loadEvents();
+      loadParticipants();
+      setTab('registrations');
+    } catch (e) {
+      setErr(e.response?.data?.message || 'Registration failed');
     }
   };
 
-  // 6. DELETE Participant using Fetch API
-  const handleCancelRegistration = async (id, name) => {
-    if (!window.confirm(`Cancel registration for ${name}?`)) return;
+  const handleCancelRegistration = async (id) => {
+    if (!window.confirm('Cancel this registration?')) return;
     try {
       const res = await fetch(`${API_BASE}/participants/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to cancel');
-      showMsg(`Registration for ${name} cancelled.`);
-      fetchEvents();
-      fetchParticipants();
-    } catch (err) {
-      showErr(err.message || 'Error cancelling registration');
+      if (!res.ok) throw new Error();
+      setMsg('Registration cancelled');
+      loadEvents();
+      loadParticipants();
+    } catch (e) {
+      setErr('Error cancelling registration');
     }
   };
 
+  const filteredEvents = events.filter((ev) =>
+    ev.name?.toLowerCase().includes(search.toLowerCase()) ||
+    ev.venue?.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <div className="container">
-      <header className="header">
-        <h1>🎓 College Event Registration System</h1>
-        <p>Minimal & Clean Portal for Organizers and Students</p>
-      </header>
+    <div>
+      <nav className="topbar">
+        <span className="topbar-brand">College Events</span>
+        <div className="topbar-nav">
+          <button
+            className={`nav-link ${tab === 'events' ? 'active' : ''}`}
+            onClick={() => { setTab('events'); setErr(''); }}
+          >
+            Events
+          </button>
+          <button
+            className={`nav-link ${tab === 'add' ? 'active' : ''}`}
+            onClick={() => {
+              setTab('add');
+              setEditingId(null);
+              setEventForm({ name: '', date: '', venue: '', organizerEmail: '' });
+              setErr('');
+            }}
+          >
+            {editingId ? 'Edit event' : 'Add event'}
+          </button>
+          <button
+            className={`nav-link ${tab === 'register' ? 'active' : ''}`}
+            onClick={() => { setTab('register'); setErr(''); }}
+          >
+            Register student
+          </button>
+          <button
+            className={`nav-link ${tab === 'registrations' ? 'active' : ''}`}
+            onClick={() => { setTab('registrations'); setErr(''); }}
+          >
+            Registrations
+          </button>
+        </div>
+      </nav>
 
-      {/* Notifications */}
-      {message && <div className="alert success">{message}</div>}
-      {error && <div className="alert error">{error}</div>}
+      <main className="main-container">
+        {msg && <div className="notice-bar success">{msg}</div>}
 
-      <div className="grid">
-        {/* Form 1: Add / Edit Event (Organizer) */}
-        <div className="card">
-          <h2>{editingId ? '✏️ Edit Event' : '➕ Add College Event (Organizer)'}</h2>
-          <form onSubmit={handleEventSubmit}>
-            <div className="field">
-              <label>Event Name:</label>
+        {tab === 'events' && (
+          <div>
+            <h2>Events</h2>
+            <div className="search-row">
               <input
+                className="search-input"
                 type="text"
-                placeholder="e.g. Annual Tech Symposium"
-                value={eventForm.name}
-                onChange={(e) => setEventForm({ ...eventForm, name: e.target.value })}
+                placeholder="Search by event name or venue"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
               />
+              <button className="btn-primary" onClick={() => {}}>Search</button>
             </div>
-            <div className="field-row">
-              <div className="field">
-                <label>Event Date:</label>
-                <input
-                  type="date"
-                  value={eventForm.date}
-                  onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })}
-                />
-              </div>
-              <div className="field">
-                <label>Venue:</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Auditorium Block A"
-                  value={eventForm.venue}
-                  onChange={(e) => setEventForm({ ...eventForm, venue: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="field">
-              <label>Organizer Email:</label>
-              <input
-                type="email"
-                placeholder="e.g. organizer@college.edu"
-                value={eventForm.organizerEmail}
-                onChange={(e) => setEventForm({ ...eventForm, organizerEmail: e.target.value })}
-              />
-            </div>
-            <div className="btn-group">
-              <button type="submit" className="btn btn-primary">
-                {editingId ? 'Update Event' : 'Add Event'}
-              </button>
-              {editingId && (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setEditingId(null);
-                    setEventForm({ name: '', date: '', venue: '', organizerEmail: '' });
-                  }}
-                >
-                  Cancel
-                </button>
+
+            <div className="table-card">
+              {loading ? (
+                <div className="state-text">Loading events...</div>
+              ) : filteredEvents.length === 0 ? (
+                <div className="state-text">No events found.</div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>NAME</th>
+                      <th>DATE</th>
+                      <th>VENUE</th>
+                      <th>ORGANIZER</th>
+                      <th className="text-right">REGISTRATIONS</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredEvents.map((ev) => (
+                      <tr key={ev.id}>
+                        <td>{ev.id}</td>
+                        <td>{ev.name}</td>
+                        <td>{ev.date}</td>
+                        <td>{ev.venue}</td>
+                        <td>{ev.organizerEmail}</td>
+                        <td className="text-right">{ev.registrationCount}</td>
+                        <td className="text-right">
+                          <button
+                            className="action-link edit"
+                            onClick={() => {
+                              setEditingId(ev.id);
+                              setEventForm({
+                                name: ev.name,
+                                date: ev.date,
+                                venue: ev.venue,
+                                organizerEmail: ev.organizerEmail,
+                              });
+                              setTab('add');
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="action-link delete"
+                            onClick={() => handleDeleteEvent(ev.id, ev.name)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
-          </form>
-        </div>
-
-        {/* Form 2: Register Participant (Student) */}
-        <div className="card">
-          <h2>✍️ Register for an Event (Student)</h2>
-          <form onSubmit={handleRegister}>
-            <div className="field">
-              <label>Select Event:</label>
-              <select
-                value={regForm.eventId}
-                onChange={(e) => setRegForm({ ...regForm, eventId: e.target.value })}
-              >
-                <option value="">-- Choose an Event --</option>
-                {events.map((ev) => (
-                  <option key={ev.id} value={ev.id}>
-                    {ev.name} ({ev.date} @ {ev.venue})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>Student Full Name:</label>
-              <input
-                type="text"
-                placeholder="e.g. Rahul Verma"
-                value={regForm.name}
-                onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label>Student Email Address:</label>
-              <input
-                type="email"
-                placeholder="e.g. rahul.verma@college.edu"
-                value={regForm.email}
-                onChange={(e) => setRegForm({ ...regForm, email: e.target.value })}
-              />
-            </div>
-            <div className="btn-group">
-              <button type="submit" className="btn btn-success">
-                Register Participant
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      {/* Table 1: Available Events List */}
-      <div className="card">
-        <h2>📅 Available College Events ({events.length})</h2>
-        {events.length === 0 ? (
-          <p className="empty">No events available right now.</p>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>#ID</th>
-                  <th>Event Name</th>
-                  <th>Date</th>
-                  <th>Venue</th>
-                  <th>Organizer Email</th>
-                  <th>Registered</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {events.map((ev) => (
-                  <tr key={ev.id}>
-                    <td>#{ev.id}</td>
-                    <td><strong>{ev.name}</strong></td>
-                    <td>{ev.date}</td>
-                    <td>{ev.venue}</td>
-                    <td>{ev.organizerEmail}</td>
-                    <td>
-                      <span className="badge">{ev.registrationCount} students</span>
-                    </td>
-                    <td>
-                      <button
-                        className="btn-action edit"
-                        onClick={() => {
-                          setEditingId(ev.id);
-                          setEventForm({
-                            name: ev.name,
-                            date: ev.date,
-                            venue: ev.venue,
-                            organizerEmail: ev.organizerEmail,
-                          });
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn-action delete"
-                        onClick={() => handleDeleteEvent(ev.id, ev.name)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         )}
-      </div>
 
-      {/* Table 2: Participants Registered (showing clearly which event each student is registered for) */}
-      <div className="card">
-        <h2>👥 Registered Participants & Their Events ({participants.length})</h2>
-        {participants.length === 0 ? (
-          <p className="empty">No student registrations recorded yet.</p>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>#ID</th>
-                  <th>Student Name</th>
-                  <th>Student Email</th>
-                  <th>Registered Event</th>
-                  <th>Registration Date</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {participants.map((p) => (
-                  <tr key={p.id}>
-                    <td>#{p.id}</td>
-                    <td><strong>{p.name}</strong></td>
-                    <td>{p.email}</td>
-                    <td>
-                      <span className="badge-event">{p.eventName || `Event #${p.eventId}`}</span>
-                    </td>
-                    <td>{p.registeredAt ? new Date(p.registeredAt).toLocaleString() : 'N/A'}</td>
-                    <td>
-                      <button
-                        className="btn-action delete"
-                        onClick={() => handleCancelRegistration(p.id, p.name)}
-                      >
-                        Cancel
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {tab === 'add' && (
+          <div>
+            <h2>{editingId ? 'Edit event' : 'Add event'}</h2>
+            <div className="form-box">
+              <form onSubmit={handleEventSubmit}>
+                <div className="form-group">
+                  <label>Event Name</label>
+                  <input
+                    type="text"
+                    value={eventForm.name}
+                    onChange={(e) => setEventForm({ ...eventForm, name: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Date</label>
+                  <input
+                    type="date"
+                    value={eventForm.date}
+                    onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Venue</label>
+                  <input
+                    type="text"
+                    value={eventForm.venue}
+                    onChange={(e) => setEventForm({ ...eventForm, venue: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Organizer Email</label>
+                  <input
+                    type="email"
+                    value={eventForm.organizerEmail}
+                    onChange={(e) => setEventForm({ ...eventForm, organizerEmail: e.target.value })}
+                  />
+                </div>
+
+                <div className="btn-row">
+                  <button type="submit" className="btn-primary">
+                    {editingId ? 'Save changes' : 'Add event'}
+                  </button>
+                  {editingId && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => {
+                        setEditingId(null);
+                        setTab('events');
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+                {err && <div className="form-error">{err}</div>}
+              </form>
+            </div>
           </div>
         )}
-      </div>
+
+        {tab === 'register' && (
+          <div>
+            <h2>Register student</h2>
+            <div className="form-box">
+              <form onSubmit={handleRegisterSubmit}>
+                <div className="form-group">
+                  <label>Select Event</label>
+                  <select
+                    value={regForm.eventId}
+                    onChange={(e) => setRegForm({ ...regForm, eventId: e.target.value })}
+                  >
+                    <option value="">Select an event</option>
+                    {events.map((ev) => (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.name} ({ev.date})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Student Full Name</label>
+                  <input
+                    type="text"
+                    value={regForm.name}
+                    onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Student Email Address</label>
+                  <input
+                    type="email"
+                    value={regForm.email}
+                    onChange={(e) => setRegForm({ ...regForm, email: e.target.value })}
+                  />
+                </div>
+
+                <div className="btn-row">
+                  <button type="submit" className="btn-primary">
+                    Register
+                  </button>
+                </div>
+                {err && <div className="form-error">{err}</div>}
+              </form>
+            </div>
+          </div>
+        )}
+
+        {tab === 'registrations' && (
+          <div>
+            <h2>Registrations</h2>
+            <div className="table-card">
+              {participants.length === 0 ? (
+                <div className="state-text">No student registrations recorded yet.</div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>STUDENT NAME</th>
+                      <th>STUDENT EMAIL</th>
+                      <th>REGISTERED EVENT</th>
+                      <th>REGISTRATION DATE</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {participants.map((p) => (
+                      <tr key={p.id}>
+                        <td>{p.id}</td>
+                        <td>{p.name}</td>
+                        <td>{p.email}</td>
+                        <td>{p.eventName || `Event #${p.eventId}`}</td>
+                        <td>{p.registeredAt ? new Date(p.registeredAt).toLocaleDateString() : 'N/A'}</td>
+                        <td className="text-right">
+                          <button
+                            className="action-link delete"
+                            onClick={() => handleCancelRegistration(p.id)}
+                          >
+                            Cancel
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
