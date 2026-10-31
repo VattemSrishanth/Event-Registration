@@ -55,3 +55,4 @@ export default function AddEventPage({ form, setForm, isEditing, onSubmit, onCan
     </div>
   );
 }
+

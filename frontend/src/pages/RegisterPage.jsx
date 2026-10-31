@@ -48,3 +48,4 @@ export default function RegisterPage({ events, form, setForm, onSubmit, error })
     </div>
   );
 }
+

@@ -66,3 +66,4 @@ export default function EventsPage({ events, loading, onEdit, onDelete }) {
     </div>
   );
 }
+

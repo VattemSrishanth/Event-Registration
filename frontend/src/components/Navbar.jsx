@@ -33,3 +33,4 @@ export default function Navbar({ tab, setTab }) {
     </nav>
   );
 }
+
