@@ -1,75 +1,110 @@
 package com.example.demo.controller;
 
-import com.example.demo.dto.EventRequest;
-import com.example.demo.dto.EventResponse;
-import com.example.demo.dto.ParticipantRequest;
-import com.example.demo.dto.ParticipantResponse;
-import com.example.demo.service.EventService;
-import jakarta.validation.Valid;
+import com.example.demo.model.Event;
+import com.example.demo.model.Participant;
+import com.example.demo.repository.EventRepository;
+import com.example.demo.repository.ParticipantRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/events")
+@RequestMapping("/api")
 @CrossOrigin(origins = "*")
+@Transactional
 public class EventController {
 
-    private final EventService eventService;
+    private final EventRepository eventRepo;
+    private final ParticipantRepository participantRepo;
 
-    public EventController(EventService eventService) {
-        this.eventService = eventService;
+    public EventController(EventRepository eventRepo, ParticipantRepository participantRepo) {
+        this.eventRepo = eventRepo;
+        this.participantRepo = participantRepo;
     }
 
-    // GET /api/events - List all events with registration count
-    @GetMapping
-    public ResponseEntity<List<EventResponse>> getAllEvents() {
-        return ResponseEntity.ok(eventService.getAllEvents());
+    // 1. GET all events
+    @GetMapping("/events")
+    public List<Event> getAllEvents() {
+        return eventRepo.findAll();
     }
 
-    // GET /api/events/{id} - Get event details including registered participants
-    @GetMapping("/{id}")
-    public ResponseEntity<EventResponse> getEventById(@PathVariable Long id) {
-        return ResponseEntity.ok(eventService.getEventById(id));
+    // 2. POST create new event
+    @PostMapping("/events")
+    public ResponseEntity<?> createEvent(@RequestBody Event event) {
+        if (event.getName() == null || event.getName().isBlank() ||
+            event.getDate() == null || event.getDate().isBlank() ||
+            event.getVenue() == null || event.getVenue().isBlank() ||
+            event.getOrganizerEmail() == null || !event.getOrganizerEmail().contains("@")) {
+            return ResponseEntity.badRequest().body(Map.of("message", "All fields are required and valid email is needed!"));
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(eventRepo.save(event));
     }
 
-    // POST /api/events - Add new event
-    @PostMapping
-    public ResponseEntity<EventResponse> createEvent(@Valid @RequestBody EventRequest request) {
-        EventResponse created = eventService.createEvent(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    // 3. PUT update existing event
+    @PutMapping("/events/{id}")
+    public ResponseEntity<?> updateEvent(@PathVariable Long id, @RequestBody Event updated) {
+        return eventRepo.findById(id).map(event -> {
+            event.setName(updated.getName());
+            event.setDate(updated.getDate());
+            event.setVenue(updated.getVenue());
+            event.setOrganizerEmail(updated.getOrganizerEmail());
+            return ResponseEntity.ok(eventRepo.save(event));
+        }).orElse(ResponseEntity.notFound().build());
     }
 
-    // PUT /api/events/{id} - Update an existing event
-    @PutMapping("/{id}")
-    public ResponseEntity<EventResponse> updateEvent(@PathVariable Long id, @Valid @RequestBody EventRequest request) {
-        EventResponse updated = eventService.updateEvent(id, request);
-        return ResponseEntity.ok(updated);
+    // 4. DELETE event
+    @DeleteMapping("/events/{id}")
+    public ResponseEntity<?> deleteEvent(@PathVariable Long id) {
+        if (!eventRepo.existsById(id)) return ResponseEntity.notFound().build();
+        participantRepo.deleteByEventId(id);
+        eventRepo.deleteById(id);
+        return ResponseEntity.ok(Map.of("message", "Event deleted successfully"));
     }
 
-    // DELETE /api/events/{id} - Delete an event
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, String>> deleteEvent(@PathVariable Long id) {
-        eventService.deleteEvent(id);
-        return ResponseEntity.ok(Map.of("message", "Event deleted successfully", "eventId", String.valueOf(id)));
+    // 5. POST register participant for an event
+    @PostMapping("/events/{eventId}/register")
+    public ResponseEntity<?> registerParticipant(@PathVariable Long eventId, @RequestBody Participant p) {
+        Event event = eventRepo.findById(eventId).orElse(null);
+        if (event == null) return ResponseEntity.badRequest().body(Map.of("message", "Event not found"));
+
+        if (p.getName() == null || p.getName().isBlank() || p.getEmail() == null || !p.getEmail().contains("@")) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Valid student name and email required"));
+        }
+
+        if (participantRepo.existsByEmailAndEventId(p.getEmail(), eventId)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Student is already registered for this event!"));
+        }
+
+        p.setEventId(eventId);
+        p.setEventName(event.getName());
+        Participant saved = participantRepo.save(p);
+
+        event.setRegistrationCount(event.getRegistrationCount() + 1);
+        eventRepo.save(event);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
-    // POST /api/events/{eventId}/register - Register a participant for a selected event
-    @PostMapping("/{eventId}/register")
-    public ResponseEntity<ParticipantResponse> registerParticipant(
-            @PathVariable Long eventId,
-            @Valid @RequestBody ParticipantRequest request) {
-        ParticipantResponse response = eventService.registerParticipant(eventId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    // 6. GET all registered participants
+    @GetMapping("/participants")
+    public List<Participant> getAllParticipants() {
+        return participantRepo.findAll();
     }
 
-    // GET /api/events/{eventId}/participants - Display participants registered for an event
-    @GetMapping("/{eventId}/participants")
-    public ResponseEntity<List<ParticipantResponse>> getEventParticipants(@PathVariable Long eventId) {
-        return ResponseEntity.ok(eventService.getParticipantsByEvent(eventId));
+    // 7. DELETE participant registration
+    @DeleteMapping("/participants/{id}")
+    public ResponseEntity<?> cancelRegistration(@PathVariable Long id) {
+        return participantRepo.findById(id).map(p -> {
+            eventRepo.findById(p.getEventId()).ifPresent(ev -> {
+                if (ev.getRegistrationCount() > 0) ev.setRegistrationCount(ev.getRegistrationCount() - 1);
+                eventRepo.save(ev);
+            });
+            participantRepo.delete(p);
+            return ResponseEntity.ok(Map.of("message", "Registration cancelled"));
+        }).orElse(ResponseEntity.notFound().build());
     }
 }
-
