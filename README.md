@@ -37,8 +37,15 @@ d:\Event-Registration\
     ├── package.json
     └── src\
         ├── main.jsx
-        ├── App.jsx                        # Single clean component (~130 lines)
-        └── App.css                        # Minimal stylesheet
+        ├── App.jsx                        # Main orchestrator (~110 lines)
+        ├── index.css                      # Plain CSS under 120 lines
+        ├── components\
+        │   └── Navbar.jsx                 # Top bar (34 lines)
+        └── pages\
+            ├── EventsPage.jsx             # Events list & actions (65 lines)
+            ├── AddEventPage.jsx           # Add/Edit event form (56 lines)
+            ├── RegisterPage.jsx           # Registration form (49 lines)
+            └── RegistrationsPage.jsx      # Registered students table (45 lines)
 ```
 
 ---

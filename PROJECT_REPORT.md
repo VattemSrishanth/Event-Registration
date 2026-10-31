@@ -83,8 +83,15 @@ d:\Event-Registration\
     ├── vite.config.js              # Vite configuration
     └── src\
         ├── main.jsx                # React DOM render entry
-        ├── App.jsx                 # Single clean component handling all UI, navigation & APIs
-        └── index.css               # Clean 120-line student-handwritten CSS (no frameworks)
+        ├── App.jsx                 # Concise main orchestrator (~110 lines)
+        ├── index.css               # Clean 120-line student-handwritten CSS (no frameworks)
+        ├── components\
+        │   └── Navbar.jsx          # Top navigation bar (34 lines)
+        └── pages\
+            ├── EventsPage.jsx      # Events table & search (65 lines)
+            ├── AddEventPage.jsx    # Add/Edit event form (56 lines)
+            ├── RegisterPage.jsx    # Student registration form (49 lines)
+            └── RegistrationsPage.jsx # Student registrations table (45 lines)
 ```
 
 ---
