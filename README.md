@@ -1,69 +1,74 @@
 # College Event Registration System
 
-A full-stack College Event Registration System built with **React (.jsx)** frontend, **Java Spring Boot REST API**, and a local offline **MySQL** database.
+A minimal, clean, and basic full-stack web application designed for college evaluations, lab practical exams, and project submission.
+
+- **Frontend**: React 19 (`.jsx` strict, Vite, Axios & Fetch API)
+- **Backend**: Spring Boot REST API (Java 21, Spring Data JPA, Hibernate)
+- **Database**: Local Offline MySQL Database (`college_event_db` on `localhost:3306`)
+
+> 📖 **Comprehensive Academic / Exam Write-up**:  
+> See the complete 2–3 page lab record write-up in [PROJECT_REPORT.md](PROJECT_REPORT.md).
 
 ---
 
-## 🚀 Architecture & Tech Stack
+## 📁 Minimal Folder Structure
 
-- **Frontend**: React 19 (JavaScript with strict `.jsx` syntax, Vite, Axios & Fetch API)
-- **Backend**: Java 21, Spring Boot REST API (Spring Web, Spring Data JPA, Hibernate, Bean Validation)
-- **Database**: Local MySQL (`college_event_db` on `localhost:3306`)
-
----
-
-## ✨ Features
-
-1. **Add Event (Organizer)**:
-   - Event Name, Date, Venue, and Organizer Contact Email.
-   - Comprehensive client-side & server-side validation (`@NotBlank`, `@Email`, `@NotNull`).
-2. **Display Available Events**:
-   - Live list of events with event details, dates, venues, organizer contact, and real-time registration counts.
-3. **Participant Registration**:
-   - Register participant with Name and Email for any selected event.
-   - Prevents duplicate registration for the same event with friendly error messages.
-4. **View Event Participants**:
-   - Modal showing all participants registered for a specific event with timestamps.
-5. **Registration Count**:
-   - Shows the total number of registrations per each event and across the entire portal.
-6. **Master Registry ("All Registered Participants")**:
-   - Complete table making it clear which event each participant has registered for.
-   - Filter by event or search by student name/email.
-7. **Full CRUD Operations (GET, POST, PUT, DELETE)**:
-   - `GET /api/events` - Fetch all events with registration counts
-   - `GET /api/events/{id}` - Fetch single event details with participant list
-   - `POST /api/events` - Create new event
-   - `PUT /api/events/{id}` - Update event details
-   - `DELETE /api/events/{id}` - Delete event (cascades registrations)
-   - `POST /api/events/{eventId}/register` - Register participant
-   - `GET /api/events/{eventId}/participants` - List participants for an event
-   - `GET /api/participants` - List all participants with event details
-   - `DELETE /api/participants/{id}` - Cancel a participant registration
-
----
-
-## 🛠️ How to Run
-
-### 1. Database Configuration
-Ensure MySQL Server is running locally on port 3306.
-Database configuration is in `backend/src/main/resources/application.properties`:
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/college_event_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-spring.datasource.username=root
-spring.datasource.password=Srish@1804
+```
+d:\Event-Registration\
+├── backend\
+│   ├── pom.xml
+│   ├── mvnw / mvnw.cmd
+│   └── src\main\
+│       ├── java\com\example\demo\
+│       │   ├── DemoApplication.java       # Main entry & sample data
+│       │   ├── model\
+│       │   │   ├── Event.java             # Event JPA entity
+│       │   │   └── Participant.java       # Participant JPA entity
+│       │   ├── repository\
+│       │   │   ├── EventRepository.java   # Event Data JPA repo
+│       │   │   └── ParticipantRepository.java # Participant Data JPA repo
+│       │   └── controller\
+│       │       └── EventController.java   # REST Controller (GET, POST, PUT, DELETE)
+│       └── resources\
+│           └── application.properties     # MySQL DB configuration
+│
+└── frontend\
+    ├── index.html
+    ├── package.json
+    └── src\
+        ├── main.jsx
+        ├── App.jsx                        # Single clean component (~130 lines)
+        └── App.css                        # Minimal stylesheet
 ```
 
-### 2. Run Backend (Spring Boot)
+---
+
+## 🔌 REST Endpoints Summary
+
+| Method | Endpoint | Description | Frontend Caller |
+|---|---|---|---|
+| `GET` | `/api/events` | List all events with counts | Axios (`axios.get`) |
+| `POST` | `/api/events` | Create new event | Axios (`axios.post`) |
+| `PUT` | `/api/events/{id}` | Update existing event | Axios (`axios.put`) |
+| `DELETE` | `/api/events/{id}` | Delete event | Axios (`axios.delete`) |
+| `POST` | `/api/events/{id}/register` | Register student for event | Axios (`axios.post`) |
+| `GET` | `/api/participants` | List registered students with event name | Fetch API (`fetch`) |
+| `DELETE` | `/api/participants/{id}` | Cancel student registration | Fetch API (`fetch`) |
+
+---
+
+## 🏃 Quick Start Commands
+
+### 1. Run Backend
 ```powershell
 cd d:\Event-Registration\backend
 .\mvnw.cmd spring-boot:run
 ```
-Server runs on: `http://localhost:8080`
+*Backend URL: `http://localhost:8080/api/events`*
 
-### 3. Run Frontend (React)
+### 2. Run Frontend
 ```powershell
 cd d:\Event-Registration\frontend
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
-Open browser: `http://127.0.0.1:5173`
-
+*Frontend URL: `http://127.0.0.1:5173`*
